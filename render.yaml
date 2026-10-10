@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: parakh
+    name: touchstone
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -17,9 +17,9 @@ services:
         value: gemini
       - key: GEMINI_MODEL
         value: gemini-3.5-flash-lite
-      - key: PARAKH_PUBLIC
+      - key: TOUCHSTONE_PUBLIC
         value: "1"
-      - key: PARAKH_MAX_BUDGET
+      - key: TOUCHSTONE_MAX_BUDGET
         value: "10"
-      - key: PARAKH_DAILY_LIMIT
+      - key: TOUCHSTONE_DAILY_LIMIT
         value: "3"

@@ -5,7 +5,7 @@ __pycache__/
 .venv/
 venv/
 .streamlit/secrets.toml
-PARAKH_BUILD_GUIDE.md
+TOUCHSTONE_BUILD_GUIDE.md
 *.log
 
 .vercel

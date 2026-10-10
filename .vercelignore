@@ -2,7 +2,7 @@
 .serp_cache
 .env
 *.log
-PARAKH_BUILD_GUIDE.md
+TOUCHSTONE_BUILD_GUIDE.md
 render.yaml
 frontend/node_modules
 VIDEO_SCRIPT.md

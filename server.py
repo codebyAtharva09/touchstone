@@ -27,19 +27,19 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse  # n
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
-from parakh.pipeline import investigate  # noqa: E402
-from parakh.serp_client import CachedBudgetClient  # noqa: E402
+from touchstone.pipeline import investigate  # noqa: E402
+from touchstone.serp_client import CachedBudgetClient  # noqa: E402
 
 ROOT = pathlib.Path(__file__).parent
 WEB = ROOT / "frontend" / "dist"
 SAMPLES = {"scam": ROOT / "samples" / "scam_impersonation.txt",
            "genuine": ROOT / "samples" / "genuine_offer.txt"}
 
-# Public deployments (PARAKH_PUBLIC=1) protect the SerpApi quota: capped budget,
+# Public deployments (TOUCHSTONE_PUBLIC=1) protect the SerpApi quota: capped budget,
 # cache always on, and a per-IP daily investigation limit.
-PUBLIC = os.getenv("PARAKH_PUBLIC", "0") == "1"
-MAX_BUDGET = int(os.getenv("PARAKH_MAX_BUDGET", "16"))
-DAILY_LIMIT = int(os.getenv("PARAKH_DAILY_LIMIT", "3"))
+PUBLIC = os.getenv("TOUCHSTONE_PUBLIC", "0") == "1"
+MAX_BUDGET = int(os.getenv("TOUCHSTONE_MAX_BUDGET", "16"))
+DAILY_LIMIT = int(os.getenv("TOUCHSTONE_DAILY_LIMIT", "3"))
 _runs: dict[str, list[float]] = defaultdict(list)
 _runs_lock = threading.Lock()
 
@@ -102,7 +102,7 @@ async def run_investigation(body: InvestigateRequest, request: Request):
     if PUBLIC and _take_run(_client_ip(request)) is None:
         return JSONResponse(
             {"error": f"Demo limit reached ({DAILY_LIMIT} investigations per day). "
-                      "Run Parakh locally for unlimited checks."}, status_code=429)
+                      "Run Touchstone locally for unlimited checks."}, status_code=429)
 
     q: queue.Queue = queue.Queue()
 

@@ -1,4 +1,4 @@
-"""Parakh multi-agent pipeline.
+"""Touchstone multi-agent pipeline.
 
     Offer text
        │

@@ -96,7 +96,7 @@ All searches go through `CachedBudgetClient`, plugged into `serpapi-search-tools
 - a search log shown in the UI
 - graceful failure handling, so a failed search becomes a note for the agent instead of a crash
 - result trimming: a raw SerpApi Markdown result is about 20 KB, so the client strips metadata and
-  tracking links and caps what the LLM sees (`PARAKH_MAX_RESULT_CHARS`). The full result stays in the cache.
+  tracking links and caps what the LLM sees (`TOUCHSTONE_MAX_RESULT_CHARS`). The full result stays in the cache.
 
 One fresh investigation uses at most 12 live searches (`--budget` / the UI's budget setting).
 Re-running the same offer uses 0.
@@ -136,10 +136,10 @@ python cli.py my_offer.txt hr@company.com          # optional sender email if it
 | `GOOGLE_API_KEY` / `GEMINI_API_KEY` | — | Free key from aistudio.google.com |
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Any current Gemini model with tool calling |
 | `GROQ_API_KEY` / `GROQ_MODEL` | — / `openai/gpt-oss-120b` | Backup provider, from console.groq.com |
-| `PARAKH_LLM_RPM` | `10` | Max LLM requests per minute |
-| `PARAKH_MAX_RESULT_CHARS` | `4000` (`2200` on Groq) | How much of each search result the LLM sees |
-| `PARAKH_CACHE_DIR` | `.serp_cache` | Search cache location |
-| `PARAKH_PUBLIC`, `PARAKH_MAX_BUDGET`, `PARAKH_DAILY_LIMIT` | off, `16`, `3` | Public-deployment quota protection (see Deploy) |
+| `TOUCHSTONE_LLM_RPM` | `10` | Max LLM requests per minute |
+| `TOUCHSTONE_MAX_RESULT_CHARS` | `4000` (`2200` on Groq) | How much of each search result the LLM sees |
+| `TOUCHSTONE_CACHE_DIR` | `.serp_cache` | Search cache location |
+| `TOUCHSTONE_PUBLIC`, `TOUCHSTONE_MAX_BUDGET`, `TOUCHSTONE_DAILY_LIMIT` | off, `16`, `3` | Public-deployment quota protection (see Deploy) |
 
 Check your remaining SerpApi credits (free, uses the Account API) at `http://localhost:8000/api/credits`.
 
@@ -148,17 +148,15 @@ Frontend development (hot reload, proxies `/api` to the server on port 8000):
 cd frontend && npm install && npm run dev     # npm run build updates frontend/dist
 ```
 
-The Python package is still named `parakh` (the project's working title), as are the `PARAKH_*` settings below.
-
 ## Deploy
-**Vercel (live deployment):** `vercel deploy --prod`. FastAPI runs natively. Set the env vars below, plus `PARAKH_CACHE_DIR=/tmp/serp_cache`.
+**Vercel (live deployment):** `vercel deploy --prod`. FastAPI runs natively. Set the env vars below, plus `TOUCHSTONE_CACHE_DIR=/tmp/serp_cache`.
 
 **Render (one click):** New → Blueprint → pick this repo. `render.yaml` configures everything.
 Paste `SERPAPI_API_KEY` and `GOOGLE_API_KEY` when prompted.
 
-Public mode (`PARAKH_PUBLIC=1`) protects the search quota. It caps the per-run budget (`PARAKH_MAX_BUDGET`),
-always reuses cached searches, and limits each IP to `PARAKH_DAILY_LIMIT` investigations per day.
-`PARAKH_LLM_RPM` (default 10) spaces out LLM calls to stay under free-tier rate limits.
+Public mode (`TOUCHSTONE_PUBLIC=1`) protects the search quota. It caps the per-run budget (`TOUCHSTONE_MAX_BUDGET`),
+always reuses cached searches, and limits each IP to `TOUCHSTONE_DAILY_LIMIT` investigations per day.
+`TOUCHSTONE_LLM_RPM` (default 10) spaces out LLM calls to stay under free-tier rate limits.
 
 ## Responsible design
 - The verdict cites sources. Every claim check links to evidence.

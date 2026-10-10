@@ -8,7 +8,7 @@ from langchain_core.rate_limiters import InMemoryRateLimiter
 
 # Free tiers allow only a few requests per minute. One shared limiter spaces out every
 # LLM call (all agents, all concurrent investigations) instead of tripping a 429.
-_RPM = float(os.getenv("PARAKH_LLM_RPM", "10"))
+_RPM = float(os.getenv("TOUCHSTONE_LLM_RPM", "10"))
 RATE_LIMITER = InMemoryRateLimiter(requests_per_second=_RPM / 60, check_every_n_seconds=0.2,
                                    max_bucket_size=2)
 
@@ -33,7 +33,7 @@ def get_llm(temperature: float = 0.0):
             temperature=temperature,
             # Free tier allows ~8k tokens/minute; every agent step resends the whole history,
             # so 429s are routine. The SDK waits out Groq's retry-after; give it room to.
-            max_retries=int(os.getenv("PARAKH_GROQ_RETRIES", "10")),
+            max_retries=int(os.getenv("TOUCHSTONE_GROQ_RETRIES", "10")),
             rate_limiter=RATE_LIMITER,
         )
     raise ValueError("LLM_PROVIDER must be 'gemini' or 'groq'")

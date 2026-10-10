@@ -154,8 +154,8 @@ def build_tools(client: CachedBudgetClient) -> list:
             return f"Google Jobs search failed: {type(exc).__name__}"
         if not isinstance(data, dict):
             return str(data)[:1500]
-        if data.get("parakh_note"):
-            return f"No search data: {data['parakh_note']}"
+        if data.get("touchstone_note"):
+            return f"No search data: {data['touchstone_note']}"
         jobs = data.get("jobs_results") or []
         if not jobs:
             return "No public Google Jobs listings found for this role and company."

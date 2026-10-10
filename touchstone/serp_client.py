@@ -25,10 +25,10 @@ from typing import Any
 
 import serpapi
 
-CACHE_DIR = pathlib.Path(os.getenv("PARAKH_CACHE_DIR", ".serp_cache"))
+CACHE_DIR = pathlib.Path(os.getenv("TOUCHSTONE_CACHE_DIR", ".serp_cache"))
 # Free LLM tiers (Groq: 8k tokens/minute) can't take a raw ~20 KB Markdown result.
 _DEFAULT_CHARS = "1500" if os.getenv("LLM_PROVIDER", "").lower().strip() == "groq" else "4000"
-MAX_RESULT_CHARS = int(os.getenv("PARAKH_MAX_RESULT_CHARS", _DEFAULT_CHARS))
+MAX_RESULT_CHARS = int(os.getenv("TOUCHSTONE_MAX_RESULT_CHARS", _DEFAULT_CHARS))
 _DROP_SECTIONS = {"search information", "ai overview", "pagination", "serpapi pagination",
                   "related searches", "inline images", "search parameters",
                   "related questions", "inline videos"}
@@ -82,7 +82,7 @@ class CachedBudgetClient:
         """Readable 'no data' response in whichever format the caller expects."""
         if params.get("output") == "md":
             return f"_No search data: {note}_\n"
-        return {"search_metadata": {"status": "Success"}, "parakh_note": note}
+        return {"search_metadata": {"status": "Success"}, "touchstone_note": note}
 
     def _record(self, params: dict[str, Any], status: str) -> None:
         self.log.append({"engine": params.get("engine"), "query": self._label(params), "status": status})

@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from parakh.pipeline import investigate  # noqa: E402
+from touchstone.pipeline import investigate  # noqa: E402
 
 
 def main() -> None:
