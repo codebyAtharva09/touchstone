@@ -49,6 +49,7 @@ a { color: inherit; }
 .wrap { width: min(1160px, 100% - 32px); margin-inline: auto; }
 .muted { color: var(--muted); font-weight: 400; }
 [hidden] { display: none !important; }
+#results, #how { scroll-margin-top: 76px; }
 
 /* Top bar */
 .topbar { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px);

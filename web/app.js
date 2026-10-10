@@ -31,6 +31,18 @@ function shortUrl(u) {
   try { const url = new URL(u); return url.hostname.replace(/^www\./, "") + (url.pathname.length > 1 ? url.pathname : ""); }
   catch { return u; }
 }
+// Search tools return Markdown tables; turn them into a readable one-line preview.
+function cleanPreview(text) {
+  const t = String(text || "")
+    .replace(/^#+\s*/gm, "")
+    .replace(/\|?\s*-{3,}\s*/g, " ")
+    .replace(/\s*\|\s*/g, " · ")
+    .replace(/(·\s*){2,}/g, "· ")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s·]+/, "")
+    .trim();
+  return t.length > 140 ? t.slice(0, 140) + "…" : t;
+}
 function fmtArgs(args) {
   return Object.entries(args || {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
 }
@@ -138,7 +150,7 @@ function handle(ev, state) {
       trace("call", el("span", { class: "agent" }, ev.agent), " → ", el("b", {}, ev.tool), `(${fmtArgs(ev.args)})`);
       break;
     case "tool_result":
-      trace("res", `↳ ${String(ev.preview || "").replace(/\s+/g, " ").slice(0, 140)}…`);
+      trace("res", `↳ ${cleanPreview(ev.preview)}`);
       break;
     case "warning": trace("warn", `! ${ev.message}`); break;
     case "error": state.error = ev.message; trace("warn", `✕ ${ev.message}`); break;
