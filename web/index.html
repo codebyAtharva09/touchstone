@@ -72,10 +72,10 @@
       <aside class="card pipeline-card" id="how">
         <h2>How Parakh investigates</h2>
         <ol class="pipeline" id="pipeline">
-          <li data-stage="1"><span class="num">1</span><div><b>Claim Extractor</b><p>Turns the message into checkable claims. Regex checks flag fees, UPI IDs and deadlines.</p></div></li>
-          <li data-stage="2"><span class="num">2</span><div><b>Investigator</b><p>Finds the official site, fraud warnings, the real office on Maps, the role on Google Jobs.</p></div></li>
-          <li data-stage="3"><span class="num">3</span><div><b>Skeptic</b><p>Hunts for proof the offer is <em>genuine</em>, so real employers aren't wrongly accused.</p></div></li>
-          <li data-stage="4"><span class="num">4</span><div><b>Judge</b><p>Weighs it all into a verdict with sources, plus guardrails the AI can't override.</p></div></li>
+          <li data-stage="1" class="a-extractor"><span class="num">1</span><div><b>Claim Extractor</b><p>Turns the message into checkable claims. Regex checks flag fees, UPI IDs and deadlines.</p></div></li>
+          <li data-stage="2" class="a-investigator"><span class="num">2</span><div><b>Investigator</b><p>Finds the official site, fraud warnings, the real office on Maps, the role on Google Jobs.</p></div></li>
+          <li data-stage="3" class="a-skeptic"><span class="num">3</span><div><b>Skeptic</b><p>Hunts for proof the offer is <em>genuine</em>, so real employers aren't wrongly accused.</p></div></li>
+          <li data-stage="4" class="a-judge"><span class="num">4</span><div><b>Judge</b><p>Weighs it all into a verdict with sources, plus guardrails the AI can't override.</p></div></li>
         </ol>
         <div class="trace-wrap">
           <div class="trace-head"><span>Live trace</span><span id="traceCount" class="muted">idle</span></div>
@@ -132,10 +132,20 @@
         </div>
       </div>
 
-      <details class="card log">
-        <summary><h3>Every search the agents ran</h3></summary>
-        <table><thead><tr><th>#</th><th>Engine</th><th>Query</th><th>Status</th></tr></thead><tbody id="searchLog"></tbody></table>
-      </details>
+      <section class="card serp-panel" aria-labelledby="serpTitle">
+        <div class="serp-head">
+          <div>
+            <p class="eyebrow">Powered by SerpApi</p>
+            <h3 id="serpTitle">The live searches behind this verdict</h3>
+          </div>
+          <p id="serpSummary" class="muted"></p>
+        </div>
+        <ul id="engineList" class="engines"></ul>
+        <details class="log">
+          <summary>See every query the agents ran</summary>
+          <table><thead><tr><th>#</th><th>Engine</th><th>Query</th><th>Status</th></tr></thead><tbody id="searchLog"></tbody></table>
+        </details>
+      </section>
     </section>
   </main>
 

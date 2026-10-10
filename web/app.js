@@ -15,6 +15,21 @@ const VERDICT_EYEBROW = {
   NOT_ENOUGH_EVIDENCE: "Search evidence was thin", LIKELY_LEGIT: "Checks out against live search",
 };
 
+// The SerpApi engine behind each agent tool (search_log records these engine ids).
+const TOOL_ENGINE = {
+  web_search: "google", news_search: "google_news", maps_search: "google_maps",
+  videos_search: "youtube", google_jobs_search: "google_jobs",
+};
+const ENGINE_NAME = {
+  google: "Google Search", google_news: "Google News", google_maps: "Google Maps",
+  youtube: "YouTube", google_jobs: "Google Jobs",
+};
+const ENGINE_TOOL = Object.fromEntries(Object.entries(TOOL_ENGINE).map(([tool, eng]) => [eng, tool]));
+
+// One colour per agent, shared by the pipeline list and the live trace.
+const STAGE_AGENT = { 1: "extractor", 2: "investigator", 3: "skeptic", 4: "judge" };
+const AGENT_COLOUR = { guardrail: "judge" };
+
 // ── helpers ────────────────────────────────────────────────────────────────
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -45,6 +60,11 @@ function cleanPreview(text) {
 }
 function fmtArgs(args) {
   return Object.entries(args || {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
+}
+function agentBadge(name) {
+  const key = String(name || "system").toLowerCase();
+  return el("span", { class: `agent-badge a-${AGENT_COLOUR[key] || key}` },
+    key.charAt(0).toUpperCase() + key.slice(1));
 }
 
 // ── config & samples ───────────────────────────────────────────────────────
@@ -132,7 +152,7 @@ els.form.addEventListener("submit", async (e) => {
   } finally {
     els.go.disabled = false; els.go.classList.remove("loading");
     els.go.querySelector(".btn-label").textContent = "Investigate this offer";
-    els.traceCount.textContent = `${searches} search${searches === 1 ? "" : "es"}`;
+    els.traceCount.textContent = `${searches} SerpApi search${searches === 1 ? "" : "es"}`;
   }
 });
 
@@ -141,26 +161,42 @@ function handle(ev, state) {
     case "phase": {
       const m = /^(\d)\/4/.exec(ev.name);
       if (m) setStage(+m[1]);
-      trace("phase", `■ ${ev.name.replace(/^\d\/4\s*/, "")}`);
+      trace(`phase a-${STAGE_AGENT[m && m[1]] || "judge"}`, ev.name);
       break;
     }
-    case "tool_call":
-      searches++;
-      els.traceCount.textContent = `${searches} call${searches === 1 ? "" : "s"}`;
-      trace("call", el("span", { class: "agent" }, ev.agent), " → ", el("b", {}, ev.tool), `(${fmtArgs(ev.args)})`);
+    case "tool_call": {
+      const args = ev.args || {};
+      const engine = TOOL_ENGINE[ev.tool];
+      if (engine) {
+        searches++;
+        els.traceCount.textContent = `${searches} SerpApi search${searches === 1 ? "" : "es"}`;
+      }
+      const { query, ...rest } = args;
+      const detail = query != null
+        ? [`"${query}"`, ...Object.entries(rest).map(([k, v]) => `${k}: ${v}`)].join(" · ")
+        : fmtArgs(args);
+      trace("call",
+        el("div", { class: "call-head" }, agentBadge(ev.agent),
+          engine
+            ? el("span", { class: "engine" }, el("small", {}, "SerpApi"), ENGINE_NAME[engine])
+            : el("span", { class: "engine local" }, "local check"),
+          el("span", { class: "tool" }, ev.tool)),
+        el("div", { class: "call-q" }, detail));
       break;
+    }
     case "tool_result":
       trace("res", `↳ ${cleanPreview(ev.preview)}`);
       break;
-    case "warning": trace("warn", `! ${ev.message}`); break;
-    case "error": state.error = ev.message; trace("warn", `✕ ${ev.message}`); break;
+    case "warning": trace("warn", agentBadge(ev.agent), ` ${ev.message}`); break;
+    case "error": state.error = ev.message; trace("warn", agentBadge("system"), ` ${ev.message}`); break;
     case "domain":
       state.domain = ev.data;
-      trace("dom", `◆ Domain check: ${ev.data.status} (${ev.data.detail})`);
+      trace("dom", el("span", { class: "agent-badge a-rule" }, "Rule check"),
+        ` Email domain: ${ev.data.status} (${ev.data.detail})`);
       break;
     case "claims": state.claims = ev.data; break;
     case "flags": state.flags = ev.data; break;
-    case "verdict": state.verdict = ev.data; trace("phase", "■ Verdict ready"); break;
+    case "verdict": state.verdict = ev.data; trace("phase a-judge", "Verdict ready"); break;
     case "stats": state.stats = ev.data; break;
   }
 }
@@ -207,12 +243,42 @@ function render({ verdict: v, stats, domain }) {
   const share = `Parakh checked an offer I got: ${VERDICT_LABEL[v.verdict]} (risk ${risk}/100). ${v.one_line_summary} Check yours: ${location.origin}`;
   $("shareWa").href = `https://wa.me/?text=${encodeURIComponent(share)}`;
 
-  $("searchLog").replaceChildren(...((stats && stats.search_log) || []).map((s, i) =>
-    el("tr", {}, el("td", {}, i + 1), el("td", {}, s.engine || "—"), el("td", {}, s.query || "—"),
-      el("td", {}, el("span", { class: `st ${s.status}` }, s.status)))));
+  renderSerpPanel((stats && stats.search_log) || []);
 
   els.results.hidden = false;
   els.results.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// "Powered by SerpApi": which engines this run used, with counts, from search_log.
+function renderSerpPanel(log) {
+  const byEngine = new Map();
+  let live = 0, cached = 0, skipped = 0;
+  for (const s of log) {
+    const e = byEngine.get(s.engine) || { total: 0, live: 0, cached: 0, skipped: 0 };
+    e.total++;
+    if (s.status === "cached") { e.cached++; cached++; }
+    else if (s.status === "live" || s.status === "no-results") { e.live++; live++; }
+    else { e.skipped++; skipped++; }  // budget-blocked or error: never reached SerpApi
+    byEngine.set(s.engine, e);
+  }
+
+  $("serpSummary").textContent = log.length
+    ? `${log.length} search${log.length === 1 ? "" : "es"} across ${byEngine.size} engine${byEngine.size === 1 ? "" : "s"}`
+      + ` · ${live} live · ${cached} cached` + (skipped ? ` · ${skipped} skipped` : "")
+    : "";
+  $("engineList").replaceChildren(...(log.length
+    ? [...byEngine.entries()].sort((a, b) => b[1].total - a[1].total).map(([eng, e]) =>
+      el("li", { class: "engine-tile" },
+        el("b", {}, e.total),
+        el("span", { class: "engine-name" }, ENGINE_NAME[eng] || eng || "Unknown"),
+        el("span", { class: "engine-meta" },
+          [ENGINE_TOOL[eng], `${e.live} live · ${e.cached} cached`, e.skipped && `${e.skipped} skipped`]
+            .filter(Boolean).join(" · "))))
+    : [el("li", { class: "muted" }, "No searches ran in this investigation.")]));
+
+  $("searchLog").replaceChildren(...log.map((s, i) =>
+    el("tr", {}, el("td", {}, i + 1), el("td", {}, ENGINE_NAME[s.engine] || s.engine || "—"),
+      el("td", {}, s.query || "—"), el("td", {}, el("span", { class: `st ${s.status}` }, s.status)))));
 }
 
 $("copyEmail").addEventListener("click", async (e) => {
