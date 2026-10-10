@@ -30,11 +30,6 @@ is genuine, so real employers are not falsely accused.
 6. Next steps, including cybercrime.gov.in and the 1930 helpline if money was requested.
 
 ## How it works
-![Touchstone architecture: four agents, five SerpApi engines and deterministic guardrails](docs/architecture.png)
-
-<details>
-<summary>Diagram source (Mermaid)</summary>
-
 ```mermaid
 flowchart TD
     A[Offer text + sender email] --> B[Agent 1: Claim Extractor<br/>LLM · structured output]
@@ -54,8 +49,6 @@ flowchart TD
     G --> H[Deterministic guardrails<br/>the LLM can't wave a scam through]
     H --> I[Verdict · Evidence ledger · Verification email · Next steps]
 ```
-
-</details>
 
 | Agent | What it does |
 |---|---|
