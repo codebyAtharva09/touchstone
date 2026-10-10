@@ -96,8 +96,6 @@ CLI: `python cli.py samples/scam_impersonation.txt`
 **Render (one click):** New → Blueprint → pick this repo. `render.yaml` configures everything.
 Paste `SERPAPI_API_KEY` and `GOOGLE_API_KEY` when prompted.
 
-**Anywhere with Docker** (Railway, Fly.io, Hugging Face Spaces): `docker build -t parakh .` then run it with the same env vars.
-
 Public mode (`PARAKH_PUBLIC=1`) protects the search quota. It caps the per-run budget (`PARAKH_MAX_BUDGET`),
 always reuses cached searches, and limits each IP to `PARAKH_DAILY_LIMIT` investigations per day.
 `PARAKH_LLM_RPM` (default 10) spaces out LLM calls to stay under free-tier rate limits.

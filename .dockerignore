@@ -1,6 +1,0 @@
-.env
-.venv
-.serp_cache
-__pycache__
-*.log
-PARAKH_BUILD_GUIDE.md
