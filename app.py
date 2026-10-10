@@ -156,6 +156,6 @@ if st.button("Investigate", type="primary", disabled=not offer.strip() or limit_
             st.markdown(f"- {s}")
 
         with st.expander("Every search the agents ran"):
-            st.dataframe(stats["search_log"], use_container_width=True)
+            st.dataframe(stats["search_log"], width="stretch")
         with st.expander("Extracted claims & deterministic checks"):
             st.json({"claims": claims, "text_flags": flags, "domain_check": domain})

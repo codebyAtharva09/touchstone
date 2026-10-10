@@ -93,6 +93,7 @@ CLI: `python cli.py samples/scam_impersonation.txt`
    SERPAPI_API_KEY = "..."
    LLM_PROVIDER = "gemini"
    GOOGLE_API_KEY = "..."
+   GEMINI_MODEL = "gemini-3.8-flash"
    PARAKH_PUBLIC = "1"          # caps credits: forced cache + per-visit limit
    PARAKH_MAX_BUDGET = "10"
    PARAKH_SESSION_LIMIT = "3"
