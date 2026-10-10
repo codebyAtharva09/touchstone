@@ -1,8 +1,9 @@
-# Parakh 🕵️ — a multi-agent investigator for fake job & internship offers
+# Touchstone: a multi-agent investigator for fake job & internship offers
 
 **SerpApi India Hackathon 2026 · Track: AI Agents**
 
-> **Parakh** (परख) is Hindi for testing whether something is genuine, the way a jeweller tests gold.
+> A **touchstone** is the black stone jewellers rub gold against to test whether it's real.
+> Touchstone does the same for job offers: it tests every claim against live search data.
 
 - **Live app:** https://parakh-omega.vercel.app
 - **Demo video:** <YOUTUBE LINK>
@@ -16,7 +17,7 @@ so a polished scam passes and a clumsy but genuine startup offer gets flagged.
 ## The insight
 Every offer makes checkable claims: who is hiring, for which role, from which office,
 through which email domain. A genuine offer holds up against **live search data**. A fake one does not.
-Parakh cross-examines each claim, and an adversarial **Skeptic agent** searches for proof the offer
+Touchstone cross-examines each claim, and an adversarial **Skeptic agent** searches for proof the offer
 is genuine, so real employers are not falsely accused.
 
 ## What the user gets
@@ -56,7 +57,7 @@ flowchart TD
 | Judge | Produces the verdict, a claim-by-claim evidence ledger and a verification email |
 
 ## How SerpApi is used (and why it matters)
-| Engine | Via | Why Parakh needs it |
+| Engine | Via | Why Touchstone needs it |
 |---|---|---|
 | Google Search | `serpapi-search-tools` `web_search` | Find the official website and careers page, plus the company's own fake-offer warnings |
 | Google News | `news_search` | Police and media reports of scams using this company's name |
@@ -71,17 +72,17 @@ All searches go through `CachedBudgetClient`, plugged into `serpapi-search-tools
 - a search log shown in the UI
 - graceful failure handling, so a failed search becomes a note for the agent instead of a crash
 
-Without SerpApi, Parakh has no evidence, only guesses.
+Without SerpApi, Touchstone has no evidence, only guesses.
 
 ## Tech stack
 - **Backend:** FastAPI (`server.py`). `POST /api/investigate` streams every agent step as Server-Sent Events.
-- **Frontend:** hand-built HTML, CSS and JS (`web/`), with no build step. It shows a live pipeline and trace, a risk gauge, an evidence ledger with source links, a copyable verification email and a WhatsApp share button.
+- **Frontend:** React 18 + Framer Motion, built with Vite (`frontend/`). It shows a live agent pipeline and trace, an animated touchstone verdict, an evidence ledger with source links, a copyable verification email and a per-engine SerpApi usage panel. The built files in `frontend/dist` are committed, so the Python deploy needs no Node build step.
 - **Agents:** LangChain `create_agent` with Gemini (or Groq), plus `serpapi-search-tools`.
 
 ## Run locally
 Requires Python 3.10+.
 ```bash
-git clone https://github.com/codebyAtharva09/parakh && cd parakh
+git clone https://github.com/codebyAtharva09/touchstone && cd touchstone
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -89,6 +90,13 @@ cp .env.example .env               # add SERPAPI_API_KEY and a free GOOGLE_API_K
 uvicorn server:app --reload        # open http://localhost:8000
 ```
 CLI: `python cli.py samples/scam_impersonation.txt`
+
+Frontend development (hot reload, proxies `/api` to the server on port 8000):
+```bash
+cd frontend && npm install && npm run dev     # npm run build updates frontend/dist
+```
+
+The Python package is still named `parakh` (the project's working title), as are the `PARAKH_*` settings below.
 
 ## Deploy
 **Vercel (live deployment):** `vercel deploy --prod`. FastAPI runs natively. Set the env vars below, plus `PARAKH_CACHE_DIR=/tmp/serp_cache`.

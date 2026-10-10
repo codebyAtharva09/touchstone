@@ -1,6 +1,7 @@
-"""Parakh web server: FastAPI backend + static frontend.
+"""Touchstone web server: FastAPI backend + the built React frontend (frontend/dist).
 
 Run locally:   uvicorn server:app --reload       (http://localhost:8000)
+Frontend:      cd frontend && npm install && npm run build   (or `npm run dev` for hot reload)
 
 POST /api/investigate streams the pipeline's events as Server-Sent Events, so the
 frontend can show every agent step and SerpApi search live.
@@ -30,7 +31,7 @@ from parakh.pipeline import investigate  # noqa: E402
 from parakh.serp_client import CachedBudgetClient  # noqa: E402
 
 ROOT = pathlib.Path(__file__).parent
-WEB = ROOT / "web"
+WEB = ROOT / "frontend" / "dist"
 SAMPLES = {"scam": ROOT / "samples" / "scam_impersonation.txt",
            "genuine": ROOT / "samples" / "genuine_offer.txt"}
 
@@ -42,7 +43,7 @@ DAILY_LIMIT = int(os.getenv("PARAKH_DAILY_LIMIT", "3"))
 _runs: dict[str, list[float]] = defaultdict(list)
 _runs_lock = threading.Lock()
 
-app = FastAPI(title="Parakh", docs_url=None, redoc_url=None)
+app = FastAPI(title="Touchstone", docs_url=None, redoc_url=None)
 
 
 class InvestigateRequest(BaseModel):

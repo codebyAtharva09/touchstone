@@ -4,3 +4,5 @@
 *.log
 PARAKH_BUILD_GUIDE.md
 render.yaml
+frontend/node_modules
+VIDEO_SCRIPT.md
