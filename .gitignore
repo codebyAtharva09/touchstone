@@ -1,0 +1,8 @@
+.env
+.serp_cache/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.streamlit/secrets.toml
+PARAKH_BUILD_GUIDE.md
