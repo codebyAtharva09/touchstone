@@ -5,7 +5,7 @@
 > A **touchstone** is the black stone jewellers rub gold against to test whether it's real.
 > Touchstone does the same for job offers: it tests every claim against live search data.
 
-- **Live app:** https://parakh-omega.vercel.app
+- **Live app:** https://touchstone-check.vercel.app
 - **Demo video:** <YOUTUBE LINK>
 
 ## The problem
