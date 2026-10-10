@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parakh · Fake Offer Investigator</title>
+  <meta name="description" content="Paste a job or internship offer. Four AI agents check every claim against live search data before you reply or pay anything.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%2314110d'/><path d='M32 12l16 14-16 26-16-26z' fill='%23d4a017'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6l20 18-20 34-20-34z"/><path d="M12 24h40M32 6l-8 18 8 34 8-34z" class="facet"/></svg>
+        <span class="brand-name">Parakh</span><span class="brand-hi">परख</span>
+      </a>
+      <nav class="topnav">
+        <a href="#how">How it works</a>
+        <a href="https://github.com/codebyAtharva09/parakh" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <p class="eyebrow">For students &amp; freshers in India</p>
+      <h1>Got a job offer that asks you to pay?<br><em>Don't guess. Test it.</em></h1>
+      <p class="lede">Paste the offer. Four AI agents cross-examine every claim in it (company, role, office, email domain, fees) against <strong>live Google, Maps, Jobs, News and YouTube results</strong>, and show you the evidence.</p>
+      <ul class="chips">
+        <li><span class="dot"></span>4 cooperating agents</li>
+        <li><span class="dot"></span>5 SerpApi engines</li>
+        <li><span class="dot"></span>Every claim sourced</li>
+      </ul>
+    </section>
+
+    <section class="wrap workbench">
+      <form id="form" class="card input-card" autocomplete="off">
+        <div class="card-head">
+          <h2>The offer</h2>
+          <div class="samples">
+            <span>Try a sample:</span>
+            <button type="button" class="pill" data-sample="scam">Suspicious</button>
+            <button type="button" class="pill" data-sample="genuine">Genuine</button>
+          </div>
+        </div>
+        <label class="field">
+          <span class="label">Offer message</span>
+          <textarea id="offer" rows="11" placeholder="Paste the full email or WhatsApp message here…" required minlength="20"></textarea>
+        </label>
+        <label class="field">
+          <span class="label">Sender email <span class="muted">(if it isn't in the message)</span></span>
+          <input id="sender" type="email" placeholder="hr@company.com">
+        </label>
+        <details class="advanced">
+          <summary>Search budget</summary>
+          <label class="field range">
+            <span class="label">Live searches per investigation: <b id="budgetOut">12</b></span>
+            <input id="budget" type="range" min="4" max="16" value="12">
+          </label>
+        </details>
+        <button id="go" class="btn-primary" type="submit">
+          <span class="btn-label">Investigate this offer</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <p id="formNote" class="form-note"></p>
+      </form>
+
+      <aside class="card pipeline-card" id="how">
+        <h2>How Parakh investigates</h2>
+        <ol class="pipeline" id="pipeline">
+          <li data-stage="1"><span class="num">1</span><div><b>Claim Extractor</b><p>Turns the message into checkable claims. Regex checks flag fees, UPI IDs and deadlines.</p></div></li>
+          <li data-stage="2"><span class="num">2</span><div><b>Investigator</b><p>Finds the official site, fraud warnings, the real office on Maps, the role on Google Jobs.</p></div></li>
+          <li data-stage="3"><span class="num">3</span><div><b>Skeptic</b><p>Hunts for proof the offer is <em>genuine</em>, so real employers aren't wrongly accused.</p></div></li>
+          <li data-stage="4"><span class="num">4</span><div><b>Judge</b><p>Weighs it all into a verdict with sources, plus guardrails the AI can't override.</p></div></li>
+        </ol>
+        <div class="trace-wrap">
+          <div class="trace-head"><span>Live trace</span><span id="traceCount" class="muted">idle</span></div>
+          <div id="trace" class="trace" aria-live="polite">
+            <p class="trace-empty">Agent steps and every live search will appear here.</p>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section id="results" class="wrap results" hidden>
+      <div id="verdict" class="verdict">
+        <div class="gauge">
+          <svg viewBox="0 0 120 70" aria-hidden="true">
+            <path class="gauge-track" d="M10 62 A50 50 0 0 1 110 62"/>
+            <path id="gaugeArc" class="gauge-arc" d="M10 62 A50 50 0 0 1 110 62"/>
+          </svg>
+          <div class="gauge-num"><b id="riskNum">0</b><span>/100 risk</span></div>
+        </div>
+        <div class="verdict-text">
+          <p class="eyebrow" id="verdictEyebrow">Verdict</p>
+          <h2 id="verdictLabel">—</h2>
+          <p id="verdictSummary"></p>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><b id="mLive">0</b><span>live SerpApi searches</span></div>
+        <div><b id="mCache">0</b><span>cached searches reused</span></div>
+        <div><b id="mClaims">0</b><span>claims checked</span></div>
+        <div><b id="mDomain">—</b><span>email domain check</span></div>
+      </div>
+
+      <div class="card">
+        <h3>Evidence ledger</h3>
+        <div id="ledger" class="ledger"></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card flags red"><h3>Red flags</h3><ul id="redFlags"></ul></div>
+        <div class="card flags green"><h3>Signs of legitimacy</h3><ul id="greenFlags"></ul></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head"><h3>Ask the real company</h3><button type="button" class="pill" id="copyEmail">Copy</button></div>
+          <p id="officialContact" class="muted"></p>
+          <pre id="email" class="email"></pre>
+        </div>
+        <div class="card">
+          <h3>What to do next</h3>
+          <ol id="nextSteps" class="steps"></ol>
+          <a id="shareWa" class="btn-ghost" target="_blank" rel="noopener">Warn your friends on WhatsApp</a>
+        </div>
+      </div>
+
+      <details class="card log">
+        <summary><h3>Every search the agents ran</h3></summary>
+        <table><thead><tr><th>#</th><th>Engine</th><th>Query</th><th>Status</th></tr></thead><tbody id="searchLog"></tbody></table>
+      </details>
+    </section>
+  </main>
+
+  <footer class="wrap footer">
+    <p>Parakh gives evidence, not legal advice. If you've already paid, report it at <a href="https://cybercrime.gov.in" target="_blank" rel="noopener">cybercrime.gov.in</a> or call <b>1930</b>.</p>
+    <p class="muted">Built for the SerpApi India Hackathon 2026 · Search powered by SerpApi</p>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

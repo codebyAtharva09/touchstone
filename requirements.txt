@@ -2,5 +2,6 @@ serpapi-search-tools[langchain]>=1.0.0
 serpapi>=1.1.0
 langchain-google-genai>=4.0.0
 langchain-groq>=1.0.0
-streamlit>=1.40
+fastapi>=0.115
+uvicorn[standard]>=0.30
 python-dotenv>=1.0

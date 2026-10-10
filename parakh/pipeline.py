@@ -18,7 +18,7 @@
        ▼
   Verdict, claim-by-claim evidence ledger, verification email, next steps
 
-`investigate()` is a generator that yields UI events, so the Streamlit app (or the
+`investigate()` is a generator that yields UI events, so the web server (or the
 CLI) can show every tool call live.
 """
 
@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from typing import Any, Iterator
 
 from langchain.agents import create_agent
@@ -192,11 +193,23 @@ def investigate(offer_text: str, sender_email: str = "", budget: int = 12,
         f"{case_file}\n\nDOMAIN CHECK:\n{json.dumps(domain)}\n\n"
         f"INVESTIGATOR FINDINGS:\n{inv['text']}\n\nSKEPTIC COUNTER-FINDINGS:\n{sk['text']}"
     )
-    try:
-        judge = llm.with_structured_output(Verdict)
-        verdict: Verdict = judge.invoke([("system", prompts.VERDICT), ("human", judge_input)])
-    except Exception as exc:
-        yield {"type": "warning", "agent": "judge", "message": f"Judge failed, using rule-based verdict: {exc}"}
+    judge = llm.with_structured_output(Verdict)
+    verdict = None
+    for attempt in range(3):
+        try:
+            verdict = judge.invoke([("system", prompts.VERDICT), ("human", judge_input)])
+            break
+        except Exception as exc:
+            rate_limited = "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc) or "rate" in str(exc).lower()
+            if rate_limited and attempt < 2:
+                yield {"type": "warning", "agent": "judge",
+                       "message": "LLM rate limit hit, waiting 30s before the Judge retries…"}
+                time.sleep(30)
+                continue
+            yield {"type": "warning", "agent": "judge",
+                   "message": f"Judge failed, using rule-based verdict: {str(exc)[:200]}"}
+            break
+    if verdict is None:
         verdict = _fallback_verdict(claims, flags, domain)
 
     verdict, notes = _apply_guardrails(verdict, flags, domain)

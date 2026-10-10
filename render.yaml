@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: parakh
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/config
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: SERPAPI_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: PARAKH_PUBLIC
+        value: "1"
+      - key: PARAKH_MAX_BUDGET
+        value: "10"
+      - key: PARAKH_DAILY_LIMIT
+        value: "3"

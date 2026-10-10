@@ -73,31 +73,32 @@ All searches go through `CachedBudgetClient`, plugged into `serpapi-search-tools
 
 Without SerpApi, Parakh has no evidence, only guesses.
 
+## Tech stack
+- **Backend:** FastAPI (`server.py`). `POST /api/investigate` streams every agent step as Server-Sent Events.
+- **Frontend:** hand-built HTML, CSS and JS (`web/`), with no build step. It shows a live pipeline and trace, a risk gauge, an evidence ledger with source links, a copyable verification email and a WhatsApp share button.
+- **Agents:** LangChain `create_agent` with Gemini (or Groq), plus `serpapi-search-tools`.
+
 ## Run locally
 Requires Python 3.10+.
 ```bash
-git clone <REPO URL> && cd parakh
+git clone https://github.com/codebyAtharva09/parakh && cd parakh
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 cp .env.example .env               # add SERPAPI_API_KEY and a free GOOGLE_API_KEY (or GROQ_API_KEY)
-streamlit run app.py
+uvicorn server:app --reload        # open http://localhost:8000
 ```
 CLI: `python cli.py samples/scam_impersonation.txt`
 
-## Deploy (Streamlit Community Cloud)
-1. Fork or push this repo to GitHub.
-2. On [share.streamlit.io](https://share.streamlit.io), create an app from the repo with main file `app.py` and Python 3.12.
-3. Under **Advanced settings → Secrets**, paste:
-   ```toml
-   SERPAPI_API_KEY = "..."
-   LLM_PROVIDER = "gemini"
-   GOOGLE_API_KEY = "..."
-   GEMINI_MODEL = "gemini-3.8-flash"
-   PARAKH_PUBLIC = "1"          # caps credits: forced cache + per-visit limit
-   PARAKH_MAX_BUDGET = "10"
-   PARAKH_SESSION_LIMIT = "3"
-   ```
+## Deploy
+**Render (one click):** New → Blueprint → pick this repo. `render.yaml` configures everything.
+Paste `SERPAPI_API_KEY` and `GOOGLE_API_KEY` when prompted.
+
+**Anywhere with Docker** (Railway, Fly.io, Hugging Face Spaces): `docker build -t parakh .` then run it with the same env vars.
+
+Public mode (`PARAKH_PUBLIC=1`) protects the search quota. It caps the per-run budget (`PARAKH_MAX_BUDGET`),
+always reuses cached searches, and limits each IP to `PARAKH_DAILY_LIMIT` investigations per day.
+`PARAKH_LLM_RPM` (default 10) spaces out LLM calls to stay under free-tier rate limits.
 
 ## Responsible design
 - The verdict cites sources. Every claim check links to evidence.
@@ -105,7 +106,7 @@ CLI: `python cli.py samples/scam_impersonation.txt`
 - Deterministic guardrails: money requested plus a non-official domain can never be rated "legit".
 - Search results are treated as untrusted data (prompt-injection defence).
 - Both files in `samples/` are synthetic and labelled as such.
-- Public mode protects the shared search quota (budget cap, forced cache, per-visit limit).
+- Public mode protects the shared search quota (budget cap, forced cache, per-IP daily limit).
 
 ## Limitations
 - Very new or tiny companies may have little online footprint, which leads to NOT ENOUGH EVIDENCE.
