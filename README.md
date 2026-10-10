@@ -181,7 +181,3 @@ always reuses cached searches, and limits each IP to `PARAKH_DAILY_LIMIT` invest
 - Mrudula Gharat
 - Mahi Jain
 - Angad Mishra
-
-## AI tools used
-- Claude: idea refinement, architecture, code generation and documentation
-- Gemini / Groq models run inside the product
