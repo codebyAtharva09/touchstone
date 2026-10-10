@@ -7,7 +7,7 @@
 
 - **Team:** Regnum Carya
 - **Live app:** https://touchstone-check.vercel.app
-- **Demo video:** <YOUTUBE LINK>
+- **Demo video:** https://drive.google.com/file/d/1-biYxEVDVp1CsidIFasFdjsI90Mr3hQx/view?usp=sharing
 
 ## The problem
 Students in India receive fake internship and job offers that impersonate real companies
