@@ -146,7 +146,7 @@ textarea:focus, input[type=email]:focus { outline: none; border-color: var(--gol
 .trace .call { margin-top: 6px; }
 .call-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .engine { font: 600 .74rem/1.7 var(--sans); padding: 0 8px; border-radius: 6px; border: 1px solid var(--gold); color: var(--ink); }
-.engine small { font-size: .66rem; font-weight: 700; color: var(--gold); margin-right: 5px; text-transform: uppercase; letter-spacing: .04em; }
+.engine small { font-size: .66rem; font-weight: 700; color: var(--gold); margin-right: 1px; text-transform: uppercase; letter-spacing: .04em; }
 .engine.local { border-color: var(--line); color: var(--muted); }
 .tool { font-size: .76rem; color: var(--muted); }
 .call-q { color: var(--ink); margin-top: 2px; }
@@ -198,6 +198,10 @@ textarea:focus, input[type=email]:focus { outline: none; border-color: var(--gol
   text-decoration: none; color: var(--ink-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sources a::after { content: " \2197"; color: var(--gold); }
 .sources a:hover { border-color: var(--gold); color: var(--ink); }
+.rule-src { font-size: .78rem; padding: 3px 10px; border-radius: 999px; color: var(--ink-2);
+  border: 1px dashed color-mix(in srgb, var(--ink-2) 40%, transparent); }
+.rule-src small { font-size: .64rem; font-weight: 700; color: var(--gold); text-transform: uppercase;
+  letter-spacing: .04em; margin-right: 1px; }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 .flags ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }

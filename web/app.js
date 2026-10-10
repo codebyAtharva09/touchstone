@@ -66,6 +66,20 @@ function agentBadge(name) {
   return el("span", { class: `agent-badge a-${AGENT_COLOUR[key] || key}` },
     key.charAt(0).toUpperCase() + key.slice(1));
 }
+// A source is a web URL (clickable) or "tool:<name>": a check that ran without a web page.
+const RULE_CHECK = { compare_domains: "Email domain check", text_flags: "Fee & deadline scan" };
+function sourceChip(src) {
+  const tool = /^tool:\s*([\w-]+)/i.exec(src);
+  if (tool) {
+    const name = tool[1].toLowerCase();
+    const engine = TOOL_ENGINE[name];
+    return el("span", { class: "rule-src", title: src },
+      el("small", {}, engine ? "SerpApi" : "Rule check"), " ",
+      engine ? ENGINE_NAME[engine] : RULE_CHECK[name] || name.replace(/_/g, " "));
+  }
+  const u = safeUrl(src);
+  return u && el("a", { href: u, target: "_blank", rel: "noopener noreferrer", title: u }, shortUrl(u));
+}
 
 // ── config & samples ───────────────────────────────────────────────────────
 let CONFIG = { max_budget: 16 };
@@ -178,7 +192,7 @@ function handle(ev, state) {
       trace("call",
         el("div", { class: "call-head" }, agentBadge(ev.agent),
           engine
-            ? el("span", { class: "engine" }, el("small", {}, "SerpApi"), ENGINE_NAME[engine])
+            ? el("span", { class: "engine" }, el("small", {}, "SerpApi"), " ", ENGINE_NAME[engine])
             : el("span", { class: "engine local" }, "local check"),
           el("span", { class: "tool" }, ev.tool)),
         el("div", { class: "call-q" }, detail));
@@ -220,12 +234,11 @@ function render({ verdict: v, stats, domain }) {
   $("mDomain").textContent = domain ? domain.status.replace(/_/g, " ").toLowerCase() : "—";
 
   $("ledger").replaceChildren(...v.claim_checks.map((c, i) => {
-    const links = (c.sources || []).map(safeUrl).filter(Boolean)
-      .map((u) => el("a", { href: u, target: "_blank", rel: "noopener noreferrer", title: u }, shortUrl(u)));
+    const sources = [...new Set((c.sources || []).map((s) => String(s).trim()))].map(sourceChip).filter(Boolean);
     const d = el("details", { class: "claim" },
       el("summary", {}, el("span", { class: `badge ${c.status}` }, c.status), c.claim),
       el("div", { class: "claim-body" }, el("p", {}, c.evidence),
-        links.length ? el("div", { class: "sources" }, ...links) : el("p", { class: "muted" }, "No source links.")));
+        sources.length ? el("div", { class: "sources" }, ...sources) : el("p", { class: "muted" }, "No sources cited.")));
     if (i === 0 || c.status === "CONTRADICTED") d.open = true;
     return d;
   }));
