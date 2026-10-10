@@ -30,11 +30,16 @@ is genuine, so real employers are not falsely accused.
 6. Next steps, including cybercrime.gov.in and the 1930 helpline if money was requested.
 
 ## How it works
+![Touchstone architecture: four agents, five SerpApi engines and deterministic guardrails](docs/architecture.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
-    A[Offer text + sender email] --> B[1. Claim Extractor<br/>LLM · structured output]
+    A[Offer text + sender email] --> B[Agent 1: Claim Extractor<br/>LLM · structured output]
     A --> C[Deterministic rule checks<br/>fee / UPI / deadline / chat-group / vague pay]
-    B --> D[2. Investigator agent<br/>tool-calling]
+    B --> D[Agent 2: Investigator<br/>tool-calling]
     C --> D
     D -->|serpapi-search-tools| W[web_search · Google]
     D -->|serpapi-search-tools| N[news_search · Google News]
@@ -43,12 +48,14 @@ flowchart TD
     D -->|custom tool| J[google_jobs_search · Google Jobs]
     D -->|deterministic tool| DC[compare_domains]
     D --> E[Domain check vs official site found]
-    E --> F[3. Skeptic agent<br/>hunts for proof of legitimacy]
+    E --> F[Agent 3: Skeptic<br/>hunts for proof of legitimacy]
     F -->|serpapi-search-tools| W2[web · news · maps]
-    F --> G[4. Judge<br/>structured Verdict]
+    F --> G[Agent 4: Judge<br/>structured Verdict]
     G --> H[Deterministic guardrails<br/>the LLM can't wave a scam through]
     H --> I[Verdict · Evidence ledger · Verification email · Next steps]
 ```
+
+</details>
 
 | Agent | What it does |
 |---|---|
