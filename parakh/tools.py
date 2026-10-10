@@ -32,6 +32,10 @@ from serpapi_search_tools import (
 from .serp_client import CachedBudgetClient
 
 INDIA = {"hl": "en", "gl": "in"}
+# The package's compact mode re-renders results with mistune, which crashes on any result
+# containing a Markdown table (No renderer 'table'). Full mode with no limit returns the raw
+# Markdown untouched; CachedBudgetClient.compact_markdown() trims it for the LLM instead.
+RAW = {"mode": "full", "result_limit": None}
 
 FREE_EMAIL_PROVIDERS = {
     "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.in", "outlook.com", "hotmail.com",
@@ -94,32 +98,49 @@ MONEY_PATTERNS = [
     r"(gift card|google play card|crypto|usdt)",
 ]
 PRESSURE_PATTERNS = [
-    r"within (24|48|12|2|3) ?(hours|hrs)", r"limited seats", r"seats are limited", r"urgent(ly)?",
-    r"today itself", r"last date (is )?today", r"immediate(ly)? (joining|confirm)",
+    r"within (?:the next )?\d+ ?(?:hours|hrs|minutes|mins)", r"limited (?:seats|slots)",
+    r"(?:seats|slots) are limited", r"urgent(?:ly)?", r"today itself", r"last date (?:is )?today",
+    r"immediate(?:ly)? (?:joining|confirm)", r"\btoday at \d{1,2}(?::\d{2})?(?: ?[ap]m)?",
+    r"\(today\)", r"\btoday only\b", r"same[- ]day",
 ]
+# Recruitment moved off official channels into chat groups: the usual first step of
+# "pay later" internship funnels, where fees for training or certificates come afterwards.
+OFF_PLATFORM_PATTERNS = [
+    r"chat\.whatsapp\.com/\S+", r"\bwa\.me/\S+", r"\bt\.me/\S+", r"telegram\.me/\S+",
+    r"join (?:the |our )?(?:official )?(?:whatsapp|telegram) (?:group|channel|community)",
+]
+VAGUE_PAY_PATTERNS = [r"up to (?:₹|rs\.?|inr) ?\d[\d,]*", r"performance[- ]based"]
+GENERIC_GREETING_PATTERNS = [r"^\s*dear (?:candidate|applicant|student|aspirant|job seeker)s?\b"]
+
+
+def _matches(patterns: list[str], text: str) -> list[str]:
+    return sorted({m.group(0).strip() for p in patterns for m in re.finditer(p, text, re.MULTILINE)})
 
 
 def scan_text_flags(text: str) -> dict:
     low = text.lower()
-    money = sorted({m.group(0) for p in MONEY_PATTERNS for m in re.finditer(p, low)})
-    pressure = sorted({m.group(0) for p in PRESSURE_PATTERNS for m in re.finditer(p, low)})
-    return {"money_requested": money, "pressure_tactics": pressure}
+    return {
+        "money_requested": _matches(MONEY_PATTERNS, low),
+        "pressure_tactics": _matches(PRESSURE_PATTERNS, low),
+        "off_platform": _matches(OFF_PLATFORM_PATTERNS, low),
+        "vague_pay": _matches(VAGUE_PAY_PATTERNS, low),
+        "generic_greeting": _matches(GENERIC_GREETING_PATTERNS, low),
+    }
 
 
 def build_tools(client: CachedBudgetClient) -> list:
     """All tools share one client, so cache + budget + log cover every search."""
-    common = {"provider": "langchain", "client": client}
+    common = {"provider": "langchain", "client": client, **RAW}
 
     web = web_search(
         **common,
         allowed_engines=[WebSearchEngine.GOOGLE],
         default_engine=WebSearchEngine.GOOGLE,
         default_params=INDIA,
-        result_limit=5,
     )
-    news = news_search(**common, default_params=INDIA, result_limit=5)
-    maps = maps_search(**common, default_params={"hl": "en"}, result_limit=5)
-    videos = videos_search(**common, default_params={"hl": "en", "gl": "in"}, result_limit=4)
+    news = news_search(**common, default_params=INDIA)
+    maps = maps_search(**common, default_params={"hl": "en"})
+    videos = videos_search(**common, default_params={"hl": "en", "gl": "in"})
 
     @tool
     def google_jobs_search(query: str) -> str:
@@ -161,14 +182,13 @@ def build_tools(client: CachedBudgetClient) -> list:
 
 def build_skeptic_tools(client: CachedBudgetClient) -> list:
     """The Skeptic gets a smaller toolbox: it hunts for proof of legitimacy."""
-    common = {"provider": "langchain", "client": client}
+    common = {"provider": "langchain", "client": client, **RAW}
     web = web_search(
         **common,
         allowed_engines=[WebSearchEngine.GOOGLE],
         default_engine=WebSearchEngine.GOOGLE,
         default_params=INDIA,
-        result_limit=5,
     )
-    news = news_search(**common, default_params=INDIA, result_limit=5)
-    maps = maps_search(**common, default_params={"hl": "en"}, result_limit=5)
+    news = news_search(**common, default_params=INDIA)
+    maps = maps_search(**common, default_params={"hl": "en"})
     return [web, news, maps]

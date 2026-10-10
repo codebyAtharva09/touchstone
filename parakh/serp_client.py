@@ -19,12 +19,40 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import threading
 from typing import Any
 
 import serpapi
 
 CACHE_DIR = pathlib.Path(os.getenv("PARAKH_CACHE_DIR", ".serp_cache"))
+# Free LLM tiers (Groq: 8k tokens/minute) can't take a raw ~20 KB Markdown result.
+_DEFAULT_CHARS = "1500" if os.getenv("LLM_PROVIDER", "").lower().strip() == "groq" else "4000"
+MAX_RESULT_CHARS = int(os.getenv("PARAKH_MAX_RESULT_CHARS", _DEFAULT_CHARS))
+_DROP_SECTIONS = {"search information", "ai overview", "pagination", "serpapi pagination",
+                  "related searches", "inline images", "search parameters",
+                  "related questions", "inline videos"}
+_NOISE_URL = re.compile(r"https://(www\.google\.com/search/about-this-result|serpapi\.com/)\S*")
+
+
+def compact_markdown(md: str, limit: int = MAX_RESULT_CHARS) -> str:
+    """Strip metadata and tracking links from a SerpApi Markdown result and cap its size.
+    The full result stays in the disk cache; only what the LLM sees is trimmed."""
+    if md.startswith("---"):
+        end = md.find("\n---", 3)
+        md = md[end + 4:] if end != -1 else md
+    keep, out = True, []
+    for line in md.splitlines():
+        if line.startswith("## "):
+            keep = line[3:].strip().lower() not in _DROP_SECTIONS
+        if not keep:
+            continue
+        line = _NOISE_URL.sub("", line)
+        if line.startswith("|"):
+            line = "|".join(c if len(c) <= 260 else c[:257] + "..." for c in line.split("|"))
+        out.append(line)
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
+    return text if len(text) <= limit else text[:limit] + "\n_(results truncated)_"
 
 
 class CachedBudgetClient:
@@ -70,7 +98,7 @@ class CachedBudgetClient:
             self.cache_hits += 1
             self._record(params, "cached")
             text = path.read_text(encoding="utf-8")
-            return text if is_md else json.loads(text)
+            return compact_markdown(text) if is_md else json.loads(text)
 
         with self._lock:
             if self.live_calls >= self.budget:
@@ -85,7 +113,7 @@ class CachedBudgetClient:
 
         try:
             if self._client is None:
-                self._client = serpapi.Client(api_key=self.api_key, timeout=30)
+                self._client = serpapi.Client(api_key=self.api_key, timeout=60)
             result = self._client.search(params)
         except Exception as exc:  # network / HTTP errors -> note, never crash
             self._record(params, "error")
@@ -98,7 +126,7 @@ class CachedBudgetClient:
             if self.use_cache and result.strip():
                 path.write_text(result, encoding="utf-8")
             self._record(params, "live")
-            return result
+            return compact_markdown(result)
 
         data = result.as_dict() if hasattr(result, "as_dict") else dict(result)
         if data.get("error"):

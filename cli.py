@@ -1,9 +1,9 @@
-"""Terminal runner for quick testing:  python cli.py samples/scam_impersonation.txt"""
+"""Terminal runner for quick testing:  python cli.py samples/scam_impersonation.txt [--budget 10]"""
 
 from __future__ import annotations
 
+import argparse
 import json
-import sys
 
 from dotenv import load_dotenv
 
@@ -13,12 +13,13 @@ from parakh.pipeline import investigate  # noqa: E402
 
 
 def main() -> None:
-    if len(sys.argv) < 2:
-        print("usage: python cli.py <offer.txt> [sender@email]")
-        sys.exit(1)
-    text = open(sys.argv[1], encoding="utf-8").read()
-    sender = sys.argv[2] if len(sys.argv) > 2 else ""
-    for ev in investigate(text, sender):
+    parser = argparse.ArgumentParser(description="Investigate a job or internship offer.")
+    parser.add_argument("offer_file")
+    parser.add_argument("sender", nargs="?", default="", help="sender email, if not in the message")
+    parser.add_argument("--budget", type=int, default=12, help="max live SerpApi searches")
+    args = parser.parse_args()
+    text = open(args.offer_file, encoding="utf-8").read()
+    for ev in investigate(text, args.sender, budget=args.budget):
         t = ev["type"]
         if t == "phase":
             print(f"\n=== {ev['name']} ===")

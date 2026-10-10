@@ -101,8 +101,13 @@ export function parseSource(src) {
     };
   }
   const url = safeUrl(raw);
+  if (url && CHAT_INVITE.test(new URL(url).hostname)) {
+    // The offer's own WhatsApp/Telegram invite: show it as evidence, but never make it clickable.
+    return { kind: "rule", raw, prefix: "From the message", label: "chat group invite (not linked)" };
+  }
   return url ? { kind: "link", raw, url, label: shortUrl(url) } : null;
 }
+const CHAT_INVITE = /(^|\.)(chat\.whatsapp\.com|wa\.me|t\.me|telegram\.me)$/i;
 
 // Per-engine counts for the "Powered by SerpApi" panel, built from search_log.
 export function engineUsage(log = []) {

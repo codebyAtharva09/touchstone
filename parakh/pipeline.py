@@ -32,7 +32,7 @@ from typing import Any, Iterator
 from langchain.agents import create_agent
 
 from . import prompts
-from .llm import get_llm
+from .llm import get_llm, structured
 from .schemas import ClaimCheck, ExtractedClaims, Verdict
 from .serp_client import CachedBudgetClient
 from .tools import build_skeptic_tools, build_tools, domain_report, scan_text_flags
@@ -61,34 +61,44 @@ def _run_agent(agent, user_msg: str, agent_name: str, recursion_limit: int,
     The agent's final text lands in sink['text']; raw tool outputs in sink['tool_outputs']."""
     sink.setdefault("tool_outputs", [])
     sink["text"] = ""
-    try:
-        for chunk in agent.stream(
-            {"messages": [{"role": "user", "content": user_msg}]},
-            config={"recursion_limit": recursion_limit},
-            stream_mode="updates",
-        ):
-            for _node, update in chunk.items():
-                if not isinstance(update, dict):
-                    continue
-                for msg in update.get("messages") or []:
-                    msg_type = getattr(msg, "type", "")
-                    tool_calls = getattr(msg, "tool_calls", None) or []
-                    if msg_type == "ai" and tool_calls:
-                        for tc in tool_calls:
-                            yield {"type": "tool_call", "agent": agent_name,
-                                   "tool": tc.get("name"), "args": tc.get("args", {})}
-                    elif msg_type == "tool":
-                        content = _text(msg.content)
-                        sink["tool_outputs"].append(f"[{msg.name}] {content[:1500]}")
-                        yield {"type": "tool_result", "agent": agent_name,
-                               "tool": msg.name, "preview": content[:300]}
-                    elif msg_type == "ai":
-                        text = _text(msg.content).strip()
-                        if text:
-                            sink["text"] = text
-    except Exception as exc:  # rate limits, recursion limit, provider hiccups
-        yield {"type": "warning", "agent": agent_name,
-               "message": f"{agent_name} stopped early: {type(exc).__name__}: {str(exc)[:200]}"}
+    for attempt in range(2):
+        try:
+            for chunk in agent.stream(
+                {"messages": [{"role": "user", "content": user_msg}]},
+                config={"recursion_limit": recursion_limit},
+                stream_mode="updates",
+            ):
+                for _node, update in chunk.items():
+                    if not isinstance(update, dict):
+                        continue
+                    for msg in update.get("messages") or []:
+                        msg_type = getattr(msg, "type", "")
+                        tool_calls = getattr(msg, "tool_calls", None) or []
+                        if msg_type == "ai" and tool_calls:
+                            sink.setdefault("tool_calls", []).extend(tool_calls)
+                            for tc in tool_calls:
+                                yield {"type": "tool_call", "agent": agent_name,
+                                       "tool": tc.get("name"), "args": tc.get("args", {})}
+                        elif msg_type == "tool":
+                            content = _text(msg.content)
+                            sink["tool_outputs"].append(f"[{msg.name}] {content[:1500]}")
+                            yield {"type": "tool_result", "agent": agent_name,
+                                   "tool": msg.name, "preview": content[:300]}
+                        elif msg_type == "ai":
+                            text = _text(msg.content).strip()
+                            if text:
+                                sink["text"] = text
+            break
+        except Exception as exc:  # rate limits, recursion limit, provider hiccups
+            if attempt == 0 and "tool_use_failed" in str(exc):
+                # Free models sometimes emit a malformed tool call. Retry once; searches
+                # already made come back from the cache at no cost.
+                yield {"type": "warning", "agent": agent_name,
+                       "message": f"{agent_name} sent a malformed tool call, retrying once…"}
+                continue
+            yield {"type": "warning", "agent": agent_name,
+                   "message": f"{agent_name} stopped early: {type(exc).__name__}: {str(exc)[:200]}"}
+            break
     if not sink["text"]:
         # Fall back to raw tool outputs so the Verdict agent still has evidence.
         sink["text"] = "RAW SEARCH OUTPUTS (agent did not finish):\n" + "\n".join(
@@ -112,18 +122,39 @@ def _fallback_verdict(claims: ExtractedClaims, flags: dict, domain: dict) -> Ver
         red.append(domain["detail"])
     if flags["pressure_tactics"]:
         red.append("Pressure tactics: " + ", ".join(flags["pressure_tactics"]))
+    if flags.get("off_platform"):
+        red.append("Moves recruitment into a WhatsApp or Telegram group: " + ", ".join(flags["off_platform"]))
+    hard = bool(flags["money_requested"]) or domain["status"] in {"FREE_EMAIL_PROVIDER", "LOOKALIKE", "DIFFERENT"}
+    green = []
+    if domain["status"] == "MATCH":
+        green.append(domain["detail"])
     risk = min(100, 30 + 25 * len(red))
-    verdict = "LIKELY_SCAM" if len(red) >= 2 else ("SUSPICIOUS" if red else "NOT_ENOUGH_EVIDENCE")
+    if len(red) >= 2 and hard:
+        verdict = "LIKELY_SCAM"
+    elif red:
+        verdict = "SUSPICIOUS"
+    elif green:
+        verdict, risk = "LIKELY_LEGIT", 25
+    else:
+        verdict = "NOT_ENOUGH_EVIDENCE"
     return Verdict(
         verdict=verdict, risk_score=risk,
         one_line_summary="Verdict built from deterministic checks only (the AI judge was unavailable).",
         claim_checks=[ClaimCheck(claim=c, status="UNVERIFIED", evidence="Not assessed.")
                       for c in claims.checkable_claims],
-        red_flags=red, green_flags=[],
+        red_flags=red, green_flags=green,
         verification_email="Hello, I received an offer that claims to be from your company. "
                            "Could you please confirm whether it is genuine? I have attached it. Thank you.",
         next_steps=["Do not pay any money.", "Verify through the company's official careers page."],
     )
+
+
+_RULE_SIGNALS = {
+    "off_platform": ("a WhatsApp/Telegram group invite", "Moves recruitment into a WhatsApp or Telegram group"),
+    "pressure_tactics": ("deadline pressure", "Pressure to act fast"),
+    "vague_pay": ("vague pay", "Vague pay"),
+    "generic_greeting": ("a generic greeting", "Generic greeting, not addressed to you by name"),
+}
 
 
 def _apply_guardrails(v: Verdict, flags: dict, domain: dict) -> tuple[Verdict, list[str]]:
@@ -134,6 +165,34 @@ def _apply_guardrails(v: Verdict, flags: dict, domain: dict) -> tuple[Verdict, l
     if hard_red and v.verdict in {"LIKELY_LEGIT", "NOT_ENOUGH_EVIDENCE"}:
         notes.append("Guardrail: money requested + non-official email domain -> raised to SUSPICIOUS.")
         v.verdict = "SUSPICIOUS"
+
+    # A company that exists is not proof that this offer is genuine. Moving recruitment into a
+    # WhatsApp/Telegram group, or several pressure signals from an unverified sender, is how
+    # "pay later" internship funnels start, so it can never be rated legit.
+    signals = [(short, f"{label}: {', '.join(flags[key])}")
+               for key, (short, label) in _RULE_SIGNALS.items() if flags.get(key)]
+    soft = sum(1 for key in ("pressure_tactics", "vague_pay", "generic_greeting") if flags.get(key))
+    funnel = bool(flags.get("off_platform")) or (soft >= 2 and domain["status"] != "MATCH")
+    if funnel and v.verdict in {"LIKELY_LEGIT", "NOT_ENOUGH_EVIDENCE"}:
+        shorts = ", ".join(short for short, _ in signals)
+        notes.append(f"Guardrail: {shorts} -> {v.verdict} raised to SUSPICIOUS.")
+        v.verdict = "SUSPICIOUS"
+        v.one_line_summary = (
+            f"The company may exist, but this message follows a pattern often used before fees are asked for: "
+            f"{shorts}. Verify it through the company's official website or email before you join any group, "
+            "share documents or pay anything.")
+        rule_flags = [flag for _, flag in signals]
+        v.red_flags = rule_flags + [f for f in v.red_flags if f not in rule_flags]
+        v.next_steps.insert(0, "Do not join the group, share documents or pay any fee until the company "
+                               "confirms this offer through its official website or email.")
+    elif v.verdict == "LIKELY_LEGIT" and domain["status"] != "MATCH":
+        notes.append("Guardrail: the offer did not come from the company's official email domain "
+                     "-> LIKELY_LEGIT lowered to NOT_ENOUGH_EVIDENCE.")
+        v.verdict = "NOT_ENOUGH_EVIDENCE"
+        v.one_line_summary = ("The company may be real, but nothing shows this message came from it: it was not "
+                              "sent from the company's official email domain. Confirm it on the official careers page.")
+        v.next_steps.insert(0, "Before you reply, confirm the offer through the company's official careers page "
+                               "or HR email.")
     bands = {"LIKELY_SCAM": (75, 100), "SUSPICIOUS": (45, 74),
              "NOT_ENOUGH_EVIDENCE": (30, 60), "LIKELY_LEGIT": (0, 30)}
     lo, hi = bands[v.verdict]
@@ -148,15 +207,26 @@ def investigate(offer_text: str, sender_email: str = "", budget: int = 12,
 
     # 1 ── Claim extraction ────────────────────────────────────────────────
     yield {"type": "phase", "name": "1/4 Extracting checkable claims"}
-    try:
-        extractor = llm.with_structured_output(ExtractedClaims)
-        claims: ExtractedClaims = extractor.invoke(
-            [("system", prompts.EXTRACTOR), ("human", offer_text)])
-    except Exception as exc:
-        yield {"type": "warning", "agent": "extractor", "message": f"Extractor failed: {exc}"}
+    extractor = structured(llm, ExtractedClaims)
+    claims = None
+    for attempt in range(2):  # free models occasionally emit malformed JSON; retry once
+        try:
+            claims = extractor.invoke([("system", prompts.EXTRACTOR), ("human", offer_text)])
+            break
+        except Exception as exc:
+            if attempt == 1:
+                yield {"type": "warning", "agent": "extractor",
+                       "message": f"Extractor failed: {str(exc)[:200]}"}
+    if claims is None:
         claims = ExtractedClaims(checkable_claims=[offer_text[:200]])
     if sender_email.strip():
         claims.sender_email = sender_email.strip()
+    elif not claims.sender_email:
+        # Deterministic backup if the LLM missed it. Requires a TLD, so UPI IDs
+        # like name@okaxis are not mistaken for email addresses.
+        m = re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}", offer_text, re.IGNORECASE)
+        if m:
+            claims.sender_email = m.group(0)
     yield {"type": "claims", "data": claims.model_dump()}
 
     # 2 ── Deterministic text checks ───────────────────────────────────────
@@ -176,7 +246,13 @@ def investigate(offer_text: str, sender_email: str = "", budget: int = 12,
     yield from _run_agent(investigator, case_file, "Investigator", recursion_limit=24, sink=inv)
 
     # 4 ── Domain check against the official site found ───────────────────
-    official_site = _find_field(inv["text"], "OFFICIAL_WEBSITE") or claims.website_mentioned or ""
+    # If the Investigator stopped before its summary, reuse the official site it passed
+    # to compare_domains, so a domain match it already found is not lost.
+    compared = [tc.get("args", {}).get("official_website") for tc in inv.get("tool_calls", [])
+                if tc.get("name") == "compare_domains"]
+    official_site = (_find_field(inv["text"], "OFFICIAL_WEBSITE")
+                     or next((c for c in reversed(compared) if c), None)
+                     or claims.website_mentioned or "")
     domain = domain_report(claims.sender_email or "", official_site)
     yield {"type": "domain", "data": domain}
 
@@ -193,7 +269,7 @@ def investigate(offer_text: str, sender_email: str = "", budget: int = 12,
         f"{case_file}\n\nDOMAIN CHECK:\n{json.dumps(domain)}\n\n"
         f"INVESTIGATOR FINDINGS:\n{inv['text']}\n\nSKEPTIC COUNTER-FINDINGS:\n{sk['text']}"
     )
-    judge = llm.with_structured_output(Verdict)
+    judge = structured(llm, Verdict)
     verdict = None
     for attempt in range(3):
         try:
@@ -201,7 +277,8 @@ def investigate(offer_text: str, sender_email: str = "", budget: int = 12,
             break
         except Exception as exc:
             rate_limited = "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc) or "rate" in str(exc).lower()
-            if rate_limited and attempt < 2:
+            daily_quota = "per day" in str(exc).lower() or "PerDay" in str(exc)
+            if rate_limited and not daily_quota and attempt < 2:
                 yield {"type": "warning", "agent": "judge",
                        "message": "LLM rate limit hit, waiting 30s before the Judge retries…"}
                 time.sleep(30)
