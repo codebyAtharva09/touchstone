@@ -7,3 +7,5 @@ venv/
 .streamlit/secrets.toml
 PARAKH_BUILD_GUIDE.md
 *.log
+
+.vercel

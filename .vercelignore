@@ -1,0 +1,7 @@
+.venv
+.serp_cache
+.env
+*.log
+PARAKH_BUILD_GUIDE.md
+Dockerfile
+render.yaml

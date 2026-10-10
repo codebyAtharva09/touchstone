@@ -4,7 +4,7 @@
 
 > **Parakh** (परख) is Hindi for testing whether something is genuine, the way a jeweller tests gold.
 
-- **Live app:** <DEPLOYED URL>
+- **Live app:** https://parakh-omega.vercel.app
 - **Demo video:** <YOUTUBE LINK>
 
 ## The problem
@@ -91,6 +91,8 @@ uvicorn server:app --reload        # open http://localhost:8000
 CLI: `python cli.py samples/scam_impersonation.txt`
 
 ## Deploy
+**Vercel (live deployment):** `vercel deploy --prod`. FastAPI runs natively. Set the env vars below, plus `PARAKH_CACHE_DIR=/tmp/serp_cache`.
+
 **Render (one click):** New → Blueprint → pick this repo. `render.yaml` configures everything.
 Paste `SERPAPI_API_KEY` and `GOOGLE_API_KEY` when prompted.
 

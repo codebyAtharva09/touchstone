@@ -62,6 +62,8 @@ Verdict rules:
 - NOT_ENOUGH_EVIDENCE: searches returned too little to judge either way.
 - risk_score must agree with the verdict: LIKELY_SCAM 75-100, SUSPICIOUS 45-74,
   NOT_ENOUGH_EVIDENCE 30-60, LIKELY_LEGIT 0-30.
+- claim_checks: write one entry for EVERY item in EXTRACTED CLAIMS -> checkable_claims
+  (usually 3 to 7), plus one for the sender's email domain. Never return just one or two.
 - Each claim_check must cite source URLs that appear in the findings. Never invent URLs.
 - Take the skeptic seriously: if it found real evidence of legitimacy, say so.
 - verification_email goes to the OFFICIAL contact, never to the sender of the offer.
